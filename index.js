@@ -33,6 +33,12 @@ async function run() {
             const result = await usersColl.insertOne(req.body);
             res.send(result);
         });
+        app.get("/users/:email/role", async (req, res) => {
+            const email = req.params.email;
+            const query = { email };
+            const user = await usersColl.findOne(query);
+            res.send({ role: user?.role || "donor" });
+        });
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();
