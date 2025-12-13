@@ -37,7 +37,18 @@ async function run() {
             const email = req.params.email;
             const query = { email };
             const user = await usersColl.findOne(query);
-            res.send({ role: user?.role || "donor" });
+            res.send(user);
+        });
+        app.patch('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            if (!email) {
+                return res.status(401).send("unathorized access");
+            }
+            const query = { email: email };
+            const update = { $set: req.body };
+            const options = {};
+            const result = await usersColl.updateOne(query, update, options);
+            res.send(result);
         });
     } finally {
         // Ensures that the client will close when you finish/error
