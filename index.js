@@ -57,6 +57,12 @@ async function run() {
             const result = await donationRequest.insertOne(req.body)
             res.send(result)
         })
+        app.get('/donation-requests', async (req, res) => {
+            const { email, limit } = req.query;
+            const query = { requesterEmail: email }
+            const result = await donationRequest.find(query).limit(parseInt(limit)).toArray()
+            res.send(result)
+        })
 
     } finally {
         // Ensures that the client will close when you finish/error
