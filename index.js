@@ -29,12 +29,13 @@ async function run() {
         // await client.db("admin").command({ ping: 1 });
         const db = client.db("BloodServe");
         const usersColl = db.collection("users");
+        const donationRequest = db.collection("donation-requests")
         app.post("/users", async (req, res) => {
             const result = await usersColl.insertOne(req.body);
             res.send(result);
         });
-        app.get("/users/:email/role", async (req, res) => {
-            const email = req.params.email;
+        app.get("/users/role", async (req, res) => {
+            const { email } = req.query
             const query = { email };
             const user = await usersColl.findOne(query);
             res.send(user);
@@ -50,6 +51,13 @@ async function run() {
             const result = await usersColl.updateOne(query, update, options);
             res.send(result);
         });
+        //donation related api 
+        app.post('/donation-request', async (req, res) => {
+            const info = req.body;
+            const result = await donationRequest.insertOne(req.body)
+            res.send(result)
+        })
+
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();
