@@ -69,6 +69,12 @@ async function run() {
 
             res.send(result);
         });
+        app.get('/donation-requests/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) };
+            const result = await donationRequest.findOne(query);
+            res.send(result);
+        });
 
         app.get("/donation-requests", async (req, res) => {
             try {
@@ -99,7 +105,7 @@ async function run() {
             }
         });
         app.patch('/donation-request/:id', async (req, res) => {
-            const id = req.params.idreq.params.idreq.params.idreq.params.idreq.params.id
+            const id = req.params.id
             const query = { _id: new ObjectId(id) };
             const update = { $set: req.body };
             const options = {};
