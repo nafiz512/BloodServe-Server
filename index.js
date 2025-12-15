@@ -75,6 +75,12 @@ async function run() {
             const result = await donationRequest.findOne(query);
             res.send(result);
         });
+        app.delete('/donation-requests/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) };
+            const result = await donationRequest.deleteOne(query);
+            res.send(result);
+        });
 
         app.get("/donation-requests", async (req, res) => {
             try {
