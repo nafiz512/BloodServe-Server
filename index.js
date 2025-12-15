@@ -89,17 +89,13 @@ async function run() {
                 const limit = parseInt(req.query.limit) || 3;
 
                 const skip = (page - 1) * limit;
-
                 const query = email ? { requesterEmail: email } : {};
-
                 const total = await donationRequest.countDocuments(query);
-
                 const requests = await donationRequest
                     .find(query)
                     .skip(skip)
                     .limit(limit)
                     .toArray();
-
                 res.send({
                     data: requests,
                     total,
@@ -118,6 +114,14 @@ async function run() {
             const result = await donationRequest.updateOne(query, update, options);
             res.send(result);
         });
+        app.get('/total-donors', async (req, res) => {
+            const totaldonor = await usersColl.find({ role: "donor" }).toArray()
+            res.send(totaldonor.length)
+        })
+        app.get('/total-donation-requests', async (req, res) => {
+            const total = await donationRequest.countDocuments({});
+            res.send(total)
+        })
 
 
     } finally {
