@@ -53,16 +53,52 @@ async function run() {
         });
         //donation related api 
         app.post('/donation-request', async (req, res) => {
-            const info = req.body;
             const result = await donationRequest.insertOne(req.body)
             res.send(result)
         })
-        app.get('/donation-requests', async (req, res) => {
-            const { email, limit } = req.query;
-            const query = { requesterEmail: email }
-            const result = await donationRequest.find(query).limit(parseInt(limit)).toArray()
-            res.send(result)
-        })
+        app.get('/donation-requests-recent', async (req, res) => {
+            const { email, limit = 5 } = req.query;
+
+            const query = email ? { requesterEmail: email } : {};
+
+            const result = await donationRequest
+                .find(query)
+                .sort({ createdAt: -1 })
+                .limit(parseInt(limit))
+                .toArray();
+
+            res.send(result);
+        });
+
+        app.get("/donation-requests", async (req, res) => {
+            try {
+                const email = req.query.email;
+                const page = parseInt(req.query.page) || 1;
+                const limit = parseInt(req.query.limit) || 3;
+
+                const skip = (page - 1) * limit;
+
+                const query = email ? { requesterEmail: email } : {};
+
+                const total = await donationRequest.countDocuments(query);
+
+                const requests = await donationRequest
+                    .find(query)
+                    .skip(skip)
+                    .limit(limit)
+                    .toArray();
+
+                res.send({
+                    data: requests,
+                    total,
+                    page,
+                    totalPages: Math.ceil(total / limit),
+                });
+            } catch (err) {
+                res.status(500).send({ message: "Failed to load requests" });
+            }
+        });
+
 
     } finally {
         // Ensures that the client will close when you finish/error
