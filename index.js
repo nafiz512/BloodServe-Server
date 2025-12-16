@@ -40,6 +40,34 @@ async function run() {
             const user = await usersColl.findOne(query);
             res.send(user);
         });
+        app.get("/all-users", async (req, res) => {
+            try {
+                // Get query parameters
+                const page = parseInt(req.query.page) || 1;
+                const limit = parseInt(req.query.limit) || 4;
+                const skip = (page - 1) * limit;
+
+                //  Get total count 
+                const totalCount = await usersColl.countDocuments();
+                const totalPages = Math.ceil(totalCount / limit);
+
+                const users = await usersColl.find()
+                    .skip(skip)
+                    .limit(limit)
+                    .toArray();
+
+                res.status(200).send({
+                    data: users,
+                    totalPages: totalPages,
+                    currentPage: page,
+                    totalCount: totalCount
+                });
+
+            } catch (error) {
+                console.error("Error fetching paginated users:", error);
+                res.status(500).send({ message: "Failed to retrieve user data." });
+            }
+        });
         app.patch('/users/:email', async (req, res) => {
             const email = req.params.email;
             if (!email) {
