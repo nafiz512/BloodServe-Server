@@ -40,6 +40,12 @@ async function run() {
             const user = await usersColl.findOne(query);
             res.send(user);
         });
+        app.get("/users/donor", async (req, res) => {
+            const { bloodGroup, district, upazila } = req.query;
+            const query = { role: "donor", bloodGroup: bloodGroup, district: district, upazila: upazila };
+            const users = await usersColl.find(query).toArray();
+            res.send(users);
+        });
         app.get("/all-users", async (req, res) => {
             try {
                 // Get query parameters
@@ -70,6 +76,8 @@ async function run() {
         });
         app.patch('/users/:email', async (req, res) => {
             const email = req.params.email;
+            // console.log(email);
+
             if (!email) {
                 return res.status(401).send("unathorized access");
             }
@@ -114,8 +122,7 @@ async function run() {
             try {
                 const email = req.query.email;
                 const page = parseInt(req.query.page) || 1;
-                const limit = parseInt(req.query.limit) || 3;
-
+                const limit = parseInt(req.query.limit) || 0;
                 const skip = (page - 1) * limit;
                 const query = email ? { requesterEmail: email } : {};
                 const total = await donationRequest.countDocuments(query);
