@@ -157,6 +157,54 @@ async function run() {
             const total = await donationRequest.countDocuments({});
             res.send(total)
         })
+        
+        //donation related api
+        app.post('/create-checkout-session', async (req, res) => {
+            try {
+                const { amount, email, createAt, name } = req.body;
+
+                const session = await stripe.checkout.sessions.create({
+                    payment_method_types: ['card'],
+                    line_items: [
+                        {
+                            price_data: {
+                                currency: 'usd',
+                                unit_amount: parseInt(amount) * 100,
+                                product_data: {
+                                    name: 'Donation',
+                                },
+                            },
+                            quantity: 1,
+                        },
+                    ],
+                    customer_email: email,
+                    mode: 'payment',
+                    metadata: {
+                        name: name,
+                        amount: amount,
+                        createAt: createAt
+                    },
+                    success_url: `${process.env.Domain}/donation-success?session_id={CHECKOUT_SESSION_ID}`,
+                    cancel_url: `${process.env.Domain}/donation-cancel`,
+                });
+
+                res.json({ url: session.url });
+
+            } catch (error) {
+                console.error(error);
+                res.status(400).json({ error: error.message });
+            }
+        });
+        app.get('/donation-success', async (req, res) => {
+            const sessionId = req.query.session_id;
+            const session = await stripe.checkout.sessions.retrieve(sessionId);
+            // console.log('session id', session)
+            if (session.payment_status == 'paid') {
+                const paymentInfo = { success: true, ...session.metadata, transactionId: session.payment_intent }
+                return res.send(paymentInfo)
+            }
+            return res.send({ success: false })
+        })
 
 
     } finally {
