@@ -205,6 +205,26 @@ async function run() {
             }
             return res.send({ success: false })
         })
+        app.post("/funds", async (req, res) => {
+            try {
+                const data = req.body;
+
+                if (!data?.transactionId) {
+                    return res.status(400).send({ error: "Invalid fund data" });
+                }
+
+                const exists = await fundColl.findOne({ transactionId: data.transactionId });
+                if (exists) {
+                    return res.send({ message: "Already recorded" });
+                }
+
+                const result = await fundColl.insertOne(data);
+                res.send(result);
+            } catch (err) {
+                // console.error(err);
+                res.status(500).send({ error: err.message });
+            }
+        });
 
 
     } finally {
