@@ -1,7 +1,9 @@
 const express = require("express");
 const cors = require("cors");
+const admin = require("firebase-admin");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET);
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -21,6 +23,40 @@ const client = new MongoClient(uri, {
     },
 });
 
+
+const decoded = Buffer.from(
+    process.env.FIREBASE_SERVICE_KEY,
+    "base64"
+).toString("utf8");
+const serviceAccount = JSON.parse(decoded);
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+});
+
+const verifyFirebaseToken = async (req, res, next) => {
+    const authToken = req.headers.usertoken;
+    // console.log('ok');
+    // next()
+
+    if (!authToken)
+        return res.status(401).send({ message: "unauthorized access" });
+
+    const token = authToken.split(" ")[1];
+    if (!token) return res.status(401).send({ message: "unauthorized access" });
+    try {
+        // console.log(token);
+
+        const verify = await admin.auth().verifyIdToken(token);
+        // console.log(verify);
+
+        req.verifiedEmail = verify.email;
+    } catch {
+        return res.status(401).send({ message: "unauthorized access" });
+    }
+    next();
+};
+
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
@@ -30,11 +66,12 @@ async function run() {
         const db = client.db("BloodServe");
         const usersColl = db.collection("users");
         const donationRequest = db.collection("donation-requests")
+        const fundColl = db.collection('funds')
         app.post("/users", async (req, res) => {
             const result = await usersColl.insertOne(req.body);
             res.send(result);
         });
-        app.get("/users/role", async (req, res) => {
+        app.get("/users/role", verifyFirebaseToken, async (req, res) => {
             const { email } = req.query
             const query = { email };
             const user = await usersColl.findOne(query);
@@ -46,7 +83,7 @@ async function run() {
             const users = await usersColl.find(query).toArray();
             res.send(users);
         });
-        app.get("/all-users", async (req, res) => {
+        app.get("/all-users", verifyFirebaseToken, async (req, res) => {
             try {
                 // Get query parameters
                 const page = parseInt(req.query.page) || 1;
@@ -70,11 +107,10 @@ async function run() {
                 });
 
             } catch (error) {
-                console.error("Error fetching paginated users:", error);
                 res.status(500).send({ message: "Failed to retrieve user data." });
             }
         });
-        app.patch('/users/:email', async (req, res) => {
+        app.patch('/users/:email', verifyFirebaseToken, async (req, res) => {
             const email = req.params.email;
             // console.log(email);
 
@@ -92,7 +128,7 @@ async function run() {
             const result = await donationRequest.insertOne(req.body)
             res.send(result)
         })
-        app.get('/donation-requests-recent', async (req, res) => {
+        app.get('/donation-requests-recent', verifyFirebaseToken, async (req, res) => {
             const { email, limit = 5 } = req.query;
 
             const query = email ? { requesterEmail: email } : {};
@@ -102,16 +138,22 @@ async function run() {
                 .sort({ createdAt: -1 })
                 .limit(parseInt(limit))
                 .toArray();
-
             res.send(result);
         });
-        app.get('/donation-requests/:id', async (req, res) => {
+        app.get('/donation-requests/pendings', async (req, res) => {
+            const query = { status: 'pending' }
+            const result = await donationRequest
+                .find(query)
+                .toArray();
+            res.send(result);
+        });
+        app.get('/donation-requests/:id', verifyFirebaseToken, async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) };
             const result = await donationRequest.findOne(query);
             res.send(result);
         });
-        app.delete('/donation-requests/:id', async (req, res) => {
+        app.delete('/donation-requests/:id', verifyFirebaseToken, async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) };
             const result = await donationRequest.deleteOne(query);
@@ -141,8 +183,9 @@ async function run() {
                 res.status(500).send({ message: "Failed to load requests" });
             }
         });
-        app.patch('/donation-request/:id', async (req, res) => {
+        app.patch('/donation-request/:id', verifyFirebaseToken, async (req, res) => {
             const id = req.params.id
+
             const query = { _id: new ObjectId(id) };
             const update = { $set: req.body };
             const options = {};
@@ -157,7 +200,7 @@ async function run() {
             const total = await donationRequest.countDocuments({});
             res.send(total)
         })
-        
+
         //donation related api
         app.post('/create-checkout-session', async (req, res) => {
             try {
@@ -205,6 +248,7 @@ async function run() {
             }
             return res.send({ success: false })
         })
+
         app.post("/funds", async (req, res) => {
             try {
                 const data = req.body;
@@ -226,6 +270,16 @@ async function run() {
             }
         });
 
+        app.get("/funds", async (req, res) => {
+            const { transactionId } = req.query
+            const query = { transactionId: transactionId };
+            const fund = await fundColl.findOne(query);
+            res.send(fund);
+        });
+        app.get("/all-funds", async (req, res) => {
+            const funds = await fundColl.find({}).toArray();
+            res.send(funds);
+        });
 
     } finally {
         // Ensures that the client will close when you finish/error
